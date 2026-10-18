@@ -410,7 +410,43 @@ Markdown 报告包含（**只有按主题词分组这一种结果视图**，没�
   [cc98-mcp](https://github.com/EviterLesRoses2/cc98-mcp) 的 WebVPN 方案自行扩展
   （`api.py` 的请求层是独立可替换的）。
 
-自检：`python -m cc98digest auth-test` 会明确报出是"连不上令牌端点"还是"账号密码错误"。
+### 7.1 代理必须绕过（重要）
+
+CC98 真实地址是 **`10.10.98.98`** 这类校内 IP，**走代理基本必然失败**。而 Python 的 urllib 默认会读取
+Windows 系统代理（注册表）和 `HTTP(S)_PROXY` 环境变量。常见祸首：
+
+| 现象 | 原因 |
+|---|---|
+| `[WinError 10061] 由于目标计算机积极拒绝` | 系统代理指向 `127.0.0.1:789x`，而那个端口没开（Clash 关了/换端口了） |
+| `TLS 握手被中断 / SSL: UNEXPECTED_EOF` | 代理软件把 CC98 流量转发到境外节点；或开了 fake-ip，域名被解析成 `198.18.x.x` |
+
+因此本工具**默认 `runtime.proxy = "direct"`，显式忽略系统代理**：
+
+```jsonc
+"runtime": {
+  "proxy": "direct"   // direct=直连(默认) | system=用系统代理 | http://host:port=指定代理
+}
+```
+
+如果你确实需要通过代理访问（例如某条链路必须走代理），把它改成 `system` 或具体地址即可。
+
+### 7.2 一条命令定位网络问题
+
+```powershell
+cd D:\dev\cc98-digest
+& "D:\dev\python\python\python 3.12.5\python.exe" -m cc98digest netcheck
+```
+
+输出会分三段告诉你答案：**代理设置**（系统代理是什么、本次是否忽略）、**DNS 解析**（是否落在 `198.18.x.x`
+fake-ip 网段）、**连通性**（令牌端点/API 的真实 TLS 探测），最后给结论。临时试别的代理策略不用改配置：
+
+```powershell
+... -m cc98digest netcheck --proxy system
+```
+
+图形界面里也有对应按钮：工具栏 **网络自检**（登录自检失败时会自动展开）。
+
+> 判断标准很简单：`openid.cc98.org` 应该解析到 **`10.10.98.98`**。解析成 `198.18.x.x` 就说明 DNS 被代理接管了。
 
 ---
 
@@ -421,6 +457,8 @@ Markdown 报告包含（**只有按主题词分组这一种结果视图**，没�
 | 退出码 2，提示"未配置 CC98 账号" | 填 `config.json`、设 `CC98_USERNAME`/`CC98_PASSWORD`，或在网页界面里登录 |
 | 退出码 2，提示 `invalid_grant` | 账号或密码错误；或该账号需要先在浏览器登录一次完成验证 |
 | 退出码 1，提示网络不可达/超时 | 不在校园网；接入 RVPN 或 IPv6 后重试（先跑 `auth-test`） |
+| **退出码 2，`[WinError 10061] 由于目标计算机积极拒绝`** | 系统代理指向了没在运行的代理端口（Clash 关了/换端口）。本项目默认 `runtime.proxy=direct` 已忽略系统代理；若仍报这个错，跑 `netcheck` 看解析是否被 fake-ip 接管 |
+| **`TLS 握手被中断 / SSL: UNEXPECTED_EOF`** | 流量被代理软件接管后转发到境外节点。把 `*.cc98.org` 设为 DIRECT 或退出代理软件；确认 `openid.cc98.org` 解析到 `10.10.98.98` |
 | 报 `HTTP 400 invalid_from_or_size` | `page_size` 被配到 >20；工具会自动降到 20，无需手改 |
 | 出现 `HTTP 403（疑似请求过密被限流）` | 请求太密被 CC98 限流；工具会自动等约 45 秒重试。改大 `rate_limit_seconds`、减少关键词或调小 `max_pages_per_keyword` 可缓解；被限流期间所有接口（含 `/me`）都会 403，等一两分钟自愈 |
 | 报告里命中偏少 | 当前规则每词只看 2 页（硬上限，改不大），热门词（如 `AI`）按相关性排序只能覆盖最相关的部分 |

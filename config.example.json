@@ -34,6 +34,7 @@
     "log_level": "INFO",
     "token_cache": ".token.json",
     "user_agent": "cc98-digest/1.0 (personal read-only digest)",
-    "timeout_seconds": 20
+    "timeout_seconds": 20,
+    "proxy": "direct"
   }
 }

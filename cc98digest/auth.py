@@ -20,6 +20,8 @@ from .logging_setup import get_logger
 
 log = get_logger("auth")
 
+from . import net  # noqa: E402  (放在 logger 之后，避免循环导入时过早触发)
+
 # 提前 120 秒判定过期，避免边界上被 401
 EXPIRY_SKEW_SECONDS = 120
 
@@ -51,7 +53,11 @@ class Token:
 
 
 def _post_form(
-    url: str, data: dict[str, str], timeout: float, user_agent: str
+    url: str,
+    data: dict[str, str],
+    timeout: float,
+    user_agent: str,
+    cfg: AppConfig | None = None,
 ) -> tuple[int, dict[str, Any]]:
     body = urllib.parse.urlencode(data).encode("utf-8")
     req = urllib.request.Request(
@@ -64,8 +70,10 @@ def _post_form(
             "User-Agent": user_agent,
         },
     )
+    # 走统一的 opener：默认忽略系统代理（CC98 是校内服务，走代理会得到 10061/SSL 中断）
+    opener = net.build_opener(cfg)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with opener.open(req, timeout=timeout) as resp:
             payload = resp.read().decode("utf-8", "replace")
             return resp.status, _maybe_json(payload)
     except urllib.error.HTTPError as exc:
@@ -76,9 +84,9 @@ def _post_form(
             pass
         return exc.code, _maybe_json(payload)
     except urllib.error.URLError as exc:
-        raise AuthError(f"无法连接令牌端点 {url}：{exc.reason}") from exc
+        raise AuthError(f"无法连接令牌端点 {url}：{net.describe_error(exc, url, cfg)}") from exc
     except TimeoutError as exc:
-        raise AuthError(f"连接令牌端点 {url} 超时。") from exc
+        raise AuthError(f"连接令牌端点 {url} 超时。（{net.describe_error(exc, url, cfg)}）") from exc
 
 
 def _maybe_json(text: str) -> dict[str, Any]:
@@ -144,7 +152,11 @@ def save_cached_token(path: Path, token: Token) -> None:
 
 
 def request_token(
-    creds: Credentials, timeout: float, user_agent: str, use_refresh: str | None
+    creds: Credentials,
+    timeout: float,
+    user_agent: str,
+    use_refresh: str | None,
+    cfg: AppConfig | None = None,
 ) -> Token:
     common = {
         "client_id": creds.client_id,
@@ -163,7 +175,7 @@ def request_token(
             "username": creds.username,
             "password": creds.password,
         }
-    status, payload = _post_form(creds.token_endpoint, data, timeout, user_agent)
+    status, payload = _post_form(creds.token_endpoint, data, timeout, user_agent, cfg)
     log.debug("令牌端点 %s 返回 %s", creds.token_endpoint, status)
     return _token_from_payload(payload)
 
@@ -183,7 +195,7 @@ def get_token(
             return cached
         if cached and cached.refresh_token:
             try:
-                token = request_token(creds, timeout, user_agent, use_refresh=cached.refresh_token)
+                token = request_token(creds, timeout, user_agent, use_refresh=cached.refresh_token, cfg=cfg)
                 save_cached_token(cfg.token_cache_path, token)
                 log.info("已通过 refresh_token 刷新登录。")
                 return token
@@ -192,7 +204,7 @@ def get_token(
 
     if refresh_token:
         try:
-            token = request_token(creds, timeout, user_agent, use_refresh=refresh_token)
+            token = request_token(creds, timeout, user_agent, use_refresh=refresh_token, cfg=cfg)
             save_cached_token(cfg.token_cache_path, token)
             log.info("已通过 refresh_token 刷新登录。")
             return token
@@ -205,7 +217,7 @@ def get_token(
             "请编辑 config.json，或设置环境变量 CC98_USERNAME / CC98_PASSWORD。"
         )
 
-    token = request_token(creds, timeout, user_agent, use_refresh=None)
+    token = request_token(creds, timeout, user_agent, use_refresh=None, cfg=cfg)
     save_cached_token(cfg.token_cache_path, token)
     log.info("账号密码登录成功，令牌有效期约 %s 秒。", token.seconds_left)
     return token
@@ -219,7 +231,7 @@ def login_with_password(cfg: AppConfig, username: str, password: str) -> Token:
     """
     creds = replace(cfg.credentials, username=username, password=password)
     token = request_token(
-        creds, float(cfg.runtime.timeout_seconds), cfg.runtime.user_agent, use_refresh=None
+        creds, float(cfg.runtime.timeout_seconds), cfg.runtime.user_agent, use_refresh=None, cfg=cfg
     )
     save_cached_token(cfg.token_cache_path, token)
     log.info("前端登录成功，账号：%s，令牌有效期约 %s 秒。", username, token.seconds_left)

@@ -273,6 +273,8 @@ class GuiHandler(BaseHTTPRequestHandler):
             return self._api_report()
         if path == "/api/keywords":
             return self._send_json({"ok": True, "keywords": self.app.keywords()})
+        if path == "/api/netcheck":
+            return self._api_netcheck()
         if path == "/api/status":
             return self._api_status()
         if path == "/api/history":
@@ -384,6 +386,37 @@ class GuiHandler(BaseHTTPRequestHandler):
             page_size=page_size,
         )
         self._send_json(result, status=202 if result.get("started") else 409)
+
+    def _api_netcheck(self) -> None:
+        """网络自检：代理 / DNS / 到 CC98 的连通性。连不上时先看这个。"""
+        from . import net as net_mod
+
+        try:
+            diag = net_mod.diagnose(self.app.cfg)
+        except Exception as exc:
+            return self._send_json(
+                {"ok": False, "error": f"{type(exc).__name__}: {exc}"}, status=500
+            )
+        self._send_json(
+            {
+                "ok": True,
+                "proxyMode": diag["proxy_mode"],
+                "systemProxy": diag.get("system_proxy") or {},
+                "envProxy": diag.get("env_proxy") or {},
+                "dns": diag["dns"],
+                "probes": [
+                    {
+                        "label": p.label,
+                        "target": p.target,
+                        "ok": p.ok,
+                        "detail": p.detail,
+                        "elapsedMs": round(p.elapsed_ms),
+                    }
+                    for p in diag["probes"]
+                ],
+                "allOk": all(p.ok for p in diag["probes"]),
+            }
+        )
 
     def _api_auth_test(self) -> None:
         from .auth import AuthError, get_token

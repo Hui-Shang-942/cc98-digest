@@ -475,6 +475,61 @@ body::after {
   padding: 1px 6px;
 }
 
+/* ---------------- 网络自检面板 ---------------- */
+.netcheck {
+  margin: 18px 0 0;
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--indigo);
+  background: rgba(255, 255, 255, .55);
+  padding: 14px 18px 12px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.7;
+  animation: rise .35s ease both;
+}
+
+.netcheck[data-ok="false"] { border-left-color: var(--vermilion); }
+
+.netcheck__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.netcheck__title {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.netcheck__badge {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  color: #fff8f0;
+  background: var(--indigo);
+}
+
+.netcheck__badge[data-ok="false"] { background: var(--vermilion); }
+
+.netcheck__row { display: flex; gap: 10px; padding: 2px 0; }
+.netcheck__key { color: var(--ink-faint); min-width: 92px; }
+.netcheck__val { flex: 1 1 auto; word-break: break-all; }
+.netcheck__val--bad { color: var(--vermilion-dark); }
+.netcheck__val--warn { color: var(--ochre); }
+
+.netcheck__list { margin: 4px 0 0; padding-left: 18px; }
+.netcheck__close {
+  all: unset;
+  cursor: pointer;
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+.netcheck__close:hover { color: var(--vermilion); }
+
 table.list { width: 100%; border-collapse: collapse; margin-top: 2px; }
 
 table.list th {

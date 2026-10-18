@@ -117,6 +117,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_auto.add_argument("--host", default="127.0.0.1", help="服务监听地址（写入快捷方式）")
     p_auto.add_argument("--port", type=int, default=8848, help="服务端口（写入快捷方式）")
 
+    p_net = sub.add_parser(
+        "netcheck",
+        help="网络自检：检查代理设置、DNS 解析、到 CC98 端点的连通性（连不上时先跑这个）",
+    )
+    p_net.add_argument(
+        "--proxy",
+        default=None,
+        help="临时覆盖 runtime.proxy：direct（默认）/ system / http://host:port",
+    )
+
     return parser
 
 
@@ -182,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
             return uninstall_task(name=args.name)
         elif args.command == "autostart":
             return cmd_autostart(cfg, args)
+        elif args.command == "netcheck":
+            return cmd_netcheck(cfg, args)
         else:  # pragma: no cover - argparse 已保证
             parser.error(f"未知命令 {args.command}")
             return EXIT_CONFIG
@@ -279,6 +291,56 @@ def cmd_auth_test(cfg: AppConfig, args) -> int:
 def _first_keyword(cfg: AppConfig) -> str:
     keywords = normalize_keywords(cfg.search.keywords)
     return keywords[0] if keywords else "AI"
+
+
+def cmd_netcheck(cfg: AppConfig, args) -> int:
+    """网络自检：代理 → DNS → 真实连通性，最后给结论。"""
+    from dataclasses import replace as _replace
+
+    from . import net as net_mod
+
+    if getattr(args, "proxy", None):
+        cfg = _replace(cfg, runtime=_replace(cfg.runtime, proxy=args.proxy))
+        print(f"（临时覆盖代理策略：{args.proxy}）\n")
+
+    diag = net_mod.diagnose(cfg)
+
+    print("== 代理设置 ==")
+    print(f"  本次使用策略 : {diag['proxy_mode']}（direct = 忽略系统代理直连）")
+    system_proxy = diag.get("system_proxy") or {}
+    print(f"  系统代理     : {system_proxy.get('https') or system_proxy.get('http') or '（未设置）'}")
+    if diag.get("env_proxy"):
+        print(f"  环境变量代理 : {diag['env_proxy']}")
+    if diag["proxy_mode"] == "direct" and system_proxy:
+        print("  → 已忽略上面的系统代理（CC98 是校内服务，走代理会失败）")
+
+    print("\n== DNS 解析 ==")
+    for label, info in diag["dns"].items():
+        if info.get("error"):
+            print(f"  {label:<8} {info['host']:<20} 解析失败：{info['error']}")
+            continue
+        fake = "（代理 fake-ip 网段，不是真实地址）" if info["fake_ip"] else ""
+        print(f"  {label:<8} {info['host']:<20} -> {', '.join(info['ips'])} {fake}")
+
+    print("\n== 连通性 ==")
+    all_ok = True
+    for probe in diag["probes"]:
+        mark = "OK  " if probe.ok else "FAIL"
+        print(f"  [{mark}] {probe.label:<10} {probe.detail}  ({probe.elapsed_ms:.0f}ms)")
+        all_ok = all_ok and probe.ok
+
+    print("\n== 结论 ==")
+    if all_ok:
+        print("  网络可达。可以登录/抓取了；若仍报错，跑 auth-test 看账号侧原因。")
+        return EXIT_OK
+    print("  连接不可用。按下面顺序排查：")
+    print("  1) 必须处于校园网 / RVPN / 校内 IPv6 —— CC98 只在浙大内网提供服务；")
+    print("  2) 关掉 Clash / v2ray 等代理软件，或把 *.cc98.org 规则设为 DIRECT；")
+    print("     代理软件的 fake-ip 会把 cc98.org 解析成 198.18.x.x，连上去必然失败；")
+    print("  3) 确认 runtime.proxy 是 direct（本项目默认），没有被改成 system；")
+    print("  4) 防火墙放行 python 的网络访问。")
+    print("  另外：真实的 CC98 地址是 10.10.98.98，解析结果不是它就说明 DNS 被接管了。")
+    return EXIT_RUNTIME
 
 
 def cmd_autostart(cfg: AppConfig, args) -> int:

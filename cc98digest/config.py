@@ -126,6 +126,9 @@ class RuntimeSettings:
     token_cache: str = ".token.json"
     user_agent: str = "cc98-digest/1.0 (personal read-only digest)"
     timeout_seconds: float = 20.0
+    # 代理策略：direct = 忽略系统代理直连（默认；CC98 是校内服务，走代理基本必失败）；
+    #           system = 使用系统/环境变量代理；也可以直接写 http://host:port
+    proxy: str = "direct"
 
 
 @dataclass
@@ -263,6 +266,12 @@ def _validate(cfg: AppConfig) -> None:
         raise ConfigError("credentials.api_base 必须是 http(s) URL。")
     if not cfg.credentials.token_endpoint.startswith("http"):
         raise ConfigError("credentials.token_endpoint 必须是 http(s) URL。")
+    proxy = str(cfg.runtime.proxy or "direct").strip()
+    if proxy not in {"direct", "system"} and not proxy.startswith(("http://", "https://")):
+        raise ConfigError(
+            "runtime.proxy 只能是 direct / system / http(s)://host:port"
+            "（CC98 是校内服务，建议保持 direct）。"
+        )
 
 
 def normalize_keywords(keywords: list[str] | None) -> list[str]:

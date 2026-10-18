@@ -342,7 +342,84 @@
     toast("正在检查登录…");
     const res = await api("/api/auth-test", { method: "POST" });
     if (res && res.ok) toast(`登录正常 · ${res.account} · ${res.probe}`);
-    else toast(`登录异常：${(res && res.error) || "未知错误"}`, "error");
+    else {
+      toast(`登录异常：${(res && res.error) || "未知错误"}`, "error");
+      // 登录失败多半是网络/代理问题，顺手把自检结果展开
+      netCheck();
+    }
+  }
+
+  /* ---------------- 网络自检 ---------------- */
+
+  async function netCheck() {
+    const panel = $("netcheck-panel");
+    panel.hidden = false;
+    panel.dataset.ok = "pending";
+    panel.innerHTML = `<div class="netcheck__head"><span class="netcheck__title">网络自检</span>
+      <span class="netcheck__badge">检测中…</span></div>`;
+    toast("正在检测网络（DNS / 代理 / 连通性）…");
+
+    const res = await api("/api/netcheck");
+    if (!res || res.ok !== true) {
+      panel.dataset.ok = "false";
+      panel.innerHTML = `<div class="netcheck__head"><span class="netcheck__title">网络自检</span>
+        <span class="netcheck__badge" data-ok="false">失败</span></div>
+        <div class="netcheck__row"><span class="netcheck__key">错误</span>
+        <span class="netcheck__val netcheck__val--bad">${esc((res && res.error) || "接口不可用")}</span></div>`;
+      return;
+    }
+
+    const sysProxy = (res.systemProxy && (res.systemProxy.https || res.systemProxy.http)) || "（未设置）";
+    const dnsRows = Object.entries(res.dns || {}).map(([label, info]) => {
+      if (info.error) {
+        return `<div class="netcheck__row"><span class="netcheck__key">${esc(label)}</span>
+          <span class="netcheck__val netcheck__val--bad">${esc(info.host || "")} 解析失败：${esc(info.error)}</span></div>`;
+      }
+      const ips = (info.ips || []).join(", ") || "-";
+      return `<div class="netcheck__row"><span class="netcheck__key">${esc(label)}</span>
+        <span class="netcheck__val ${info.fake_ip ? "netcheck__val--warn" : ""}">
+          ${esc(info.host || "")} → ${esc(ips)}${info.fake_ip ? "（代理 fake-ip 网段，不是真实地址）" : ""}
+        </span></div>`;
+    }).join("");
+
+    const probeRows = (res.probes || []).map((p) => `
+      <div class="netcheck__row">
+        <span class="netcheck__key">${p.ok ? "OK" : "FAIL"} · ${esc(p.label)}</span>
+        <span class="netcheck__val ${p.ok ? "" : "netcheck__val--bad"}">${esc(p.detail)} <small>(${p.elapsedMs}ms)</small></span>
+      </div>`).join("");
+
+    const verdict = res.allOk
+      ? `<div class="netcheck__row"><span class="netcheck__key">结论</span>
+           <span class="netcheck__val">网络可达，可以登录/抓取。</span></div>`
+      : `<div class="netcheck__row"><span class="netcheck__key">结论</span>
+           <span class="netcheck__val netcheck__val--bad">连不上 CC98，按下面顺序排查：</span></div>
+         <ul class="netcheck__list">
+           <li>必须处于校园网 / RVPN / 校内 IPv6——CC98 只在浙大内网提供。</li>
+           <li>关掉 Clash / v2ray 等代理，或把 <code>*.cc98.org</code> 设为 DIRECT；代理的 fake-ip 会把域名解析成 198.18.x.x。</li>
+           <li>确认 <code>config.json</code> 里 <code>runtime.proxy</code> 是 <code>direct</code>（本项目默认）。</li>
+           <li>防火墙放行 python；真实地址应为 <code>10.10.98.98</code>。</li>
+         </ul>`;
+
+    panel.dataset.ok = res.allOk ? "true" : "false";
+    panel.innerHTML = `
+      <div class="netcheck__head">
+        <span class="netcheck__title">网络自检</span>
+        <span class="netcheck__badge" data-ok="${res.allOk}">${res.allOk ? "可用" : "不可用"}</span>
+        <button class="netcheck__close" id="netcheck-close" title="收起">✕</button>
+      </div>
+      <div class="netcheck__row"><span class="netcheck__key">代理策略</span>
+        <span class="netcheck__val">${esc(res.proxyMode)}${res.proxyMode === "direct" ? "（忽略系统代理）" : ""}</span></div>
+      <div class="netcheck__row"><span class="netcheck__key">系统代理</span>
+        <span class="netcheck__val">${esc(sysProxy)}</span></div>
+      ${dnsRows}
+      ${probeRows}
+      ${verdict}`;
+
+    const close = $("netcheck-close");
+    if (close) close.addEventListener("click", () => { panel.hidden = true; });
+    if (!res.allOk) {
+      toast("网络不可达：请检查是否在校园网/RVPN，以及是否开了代理", "error");
+    }
   }
 
   function pollFast() {
@@ -390,6 +467,7 @@
   $("btn-run").addEventListener("click", () => triggerRun());
   $("btn-refresh").addEventListener("click", async () => { await reload(); await loadHistory(); toast("已刷新"); });
   $("btn-auth").addEventListener("click", authTest);
+  $("btn-netcheck").addEventListener("click", netCheck);
 
   // 账号登录 / 退出
   $("login-form").addEventListener("submit", async (ev) => {

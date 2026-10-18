@@ -20,6 +20,8 @@ from .logging_setup import get_logger
 
 log = get_logger("api")
 
+from . import net  # noqa: E402
+
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 MAX_ATTEMPTS = 3
 # CC98 在请求过密时会直接回 403（body 为空），恢复需要几十秒量级
@@ -100,6 +102,8 @@ class ApiClient:
         self.rate_limit = float(cfg.search.rate_limit_seconds)
         self._token_provider = token_provider
         self._last_request_at = 0.0
+        # 默认忽略系统代理：CC98 是校内服务，走代理会得到 10061 / TLS 中断
+        self._opener = net.build_opener(cfg)
 
     # ---- 底层 HTTP ----
     def _throttle(self) -> None:
@@ -163,7 +167,7 @@ class ApiClient:
                 },
             )
             try:
-                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                with self._opener.open(req, timeout=self.timeout) as resp:
                     self._last_request_at = time.monotonic()
                     raw = resp.read().decode("utf-8", "replace")
                     return _parse_json(raw, url)
@@ -195,10 +199,10 @@ class ApiClient:
                 raise ApiError(f"请求 {url} 返回 HTTP {exc.code} {exc.reason} {body}") from exc
             except urllib.error.URLError as exc:
                 self._last_request_at = time.monotonic()
-                raise _RetryableError(f"网络不可达：{exc.reason}") from exc
+                raise _RetryableError(net.describe_error(exc, url, self.cfg)) from exc
             except TimeoutError as exc:
                 self._last_request_at = time.monotonic()
-                raise _RetryableError(f"请求超时（{self.timeout}s）") from exc
+                raise _RetryableError(net.describe_error(exc, url, self.cfg)) from exc
         raise ApiError(f"请求 {url} 失败：401 重试后仍未成功。")  # pragma: no cover
 
     def _forget_token(self) -> None:
