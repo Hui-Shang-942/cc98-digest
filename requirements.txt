@@ -1,0 +1,8 @@
+本工具只使用 Python 标准库（urllib / json / zoneinfo / argparse / logging / csv），
+不需要 requests、beautifulsoup4 等第三方包。
+
+因此这里没有可安装的依赖；requirements.txt 仅作为说明存在，`pip install -r requirements.txt`
+会成功但什么也不会安装。
+
+运行环境要求：
+    Python >= 3.10（推荐 3.11+，Windows 上 zoneinfo 需要 tzdata，Python 官方安装包自带）

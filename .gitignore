@@ -1,0 +1,21 @@
+# 本地凭据与运行时状态（绝不提交）
+config.json
+.token.json
+state.json
+reports/
+logs/
+__pycache__/
+*.pyc
+
+# Python 虚拟环境
+venv/
+.venv/
+
+# 测试缓存
+.pytest_cache/
+
+# 环境变量文件（含敏感信息，绝不提交）
+.env
+
+# 数据文件
+reports/

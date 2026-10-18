@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="7" fill="#f4efe4"/>
+  <rect x="3.5" y="3.5" width="57" height="57" rx="5" fill="none" stroke="#c8402c" stroke-width="3"/>
+  <text x="32" y="30" text-anchor="middle" font-family="Georgia,serif" font-size="21" fill="#1b1a17" font-weight="700">98</text>
+  <text x="32" y="47" text-anchor="middle" font-family="Georgia,serif" font-size="12" fill="#c8402c">日 报</text>
+</svg>

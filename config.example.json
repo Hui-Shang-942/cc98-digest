@@ -1,0 +1,39 @@
+{
+  "credentials": {
+    "username": "",
+    "password": "",
+    "client_id": "9a1fd200-8687-44b1-4c20-08d50a96e5cd",
+    "client_secret": "8b53f727-08e2-4509-8857-e34bf92b27f2",
+    "token_endpoint": "https://openid.cc98.org/connect/token",
+    "api_base": "https://api.cc98.org",
+    "scope": "cc98-api openid offline_access"
+  },
+  "search": {
+    "keywords": ["示例1", "示例2", "示例3", "示例4"],
+    "match_mode": "any",
+    "match_style": "auto",
+    "case_sensitive": false,
+    "hours": 24,
+    "page_size": 20,
+    "max_pages_per_keyword": 2,
+    "run_time_budget_seconds": 180,
+    "recent_feed_pages": 0,
+    "rate_limit_seconds": 1.0
+  },
+  "output": {
+    "dir": "reports",
+    "formats": ["md", "csv"],
+    "keep_days": 3,
+    "max_report_sets": 10,
+    "max_scheduler_logs": 3,
+    "include_url": true
+  },
+  "runtime": {
+    "state_file": "state.json",
+    "log_dir": "logs",
+    "log_level": "INFO",
+    "token_cache": ".token.json",
+    "user_agent": "cc98-digest/1.0 (personal read-only digest)",
+    "timeout_seconds": 20
+  }
+}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CC98 主题词日报 · 抓取台</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <h1 class="rail__title">抓取台</h1>
+    <div class="rail__sub">cc98-digest · console</div>
+
+    <div class="rail__block rail__block--login">
+      <div class="rail__heading">账号登录</div>
+      <div class="login-status" id="login-status">读取中…</div>
+      <form class="login-form" id="login-form" autocomplete="off">
+        <input class="login-form__input" id="login-username" type="text" placeholder="CC98 用户名" aria-label="用户名" autocomplete="username">
+        <input class="login-form__input" id="login-password" type="password" placeholder="密码" aria-label="密码" autocomplete="current-password">
+        <div class="login-form__row">
+          <button class="btn btn--sm" type="submit" id="login-btn">登录</button>
+          <button class="btn btn--sm btn--ghost" type="button" id="logout-btn" hidden>退出登录</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="ledger" id="ledger"></div>
+
+    <div class="rail__block">
+      <div class="rail__heading">主题词（可增删改）</div>
+      <ul class="kw-list" id="kw-list"></ul>
+      <form class="kw-add" id="kw-form" autocomplete="off">
+        <input class="kw-add__input" id="kw-new" type="text" maxlength="64"
+               placeholder="新增主题词，回车保存" aria-label="新增主题词">
+        <button class="btn btn--sm" type="submit" id="kw-add-btn">加</button>
+      </form>
+      <div class="kw-hint" id="kw-hint">点「✎」改名 · 点「✕」删除 · 加完点「立即抓取」生效</div>
+      <div class="kw-legend">
+        <button class="linklike" id="kw-all" type="button">全部显示</button>
+        <span class="kw-hint" id="kw-filter-note"></span>
+      </div>
+      <div id="kw-drift"></div>
+    </div>
+
+    <div class="rail__block">
+      <div class="rail__heading">历史留档</div>
+      <ul class="history" id="history"><li class="history__meta">加载中…</li></ul>
+    </div>
+
+    <div class="rail__block">
+      <div class="rail__heading">运行参数</div>
+      <div class="ledger" id="config"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="masthead">
+      <div class="masthead__kick">Zhejiang University · CC98 Daily Digest</div>
+      <h2 class="masthead__title">主题词日报</h2>
+      <div class="masthead__meta" id="masthead-meta"></div>
+      <div class="seal" id="seal">
+        <div class="seal__big" id="seal-big">待</div>
+        <div class="seal__small" id="seal-small">未抓取</div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <button class="btn btn--primary" id="btn-run">立即抓取</button>
+      <button class="btn" id="btn-refresh">刷新数据</button>
+      <button class="btn btn--ghost" id="btn-auth">登录自检</button>
+      <span class="toolbar__spacer"></span>
+      <label class="switch"><input type="checkbox" id="opt-hours"> 只看最近 6 小时</label>
+      <span class="toolbar__note" id="toolbar-note"></span>
+    </div>
+
+    <section class="stats" id="stats"></section>
+
+    <div id="groups"></div>
+
+    <div class="colophon" id="colophon"></div>
+  </main>
+</div>
+
+<div class="logs" id="logs" data-open="false">
+  <div class="logs__bar" id="logs-bar">
+    <span class="logs__dot" id="logs-dot" data-live="false"></span>
+    <span>运行日志</span>
+    <span class="toolbar__spacer"></span>
+    <span id="logs-hint">点这里展开 / 收起</span>
+  </div>
+  <div class="logs__body" id="logs-body"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
